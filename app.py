@@ -2,8 +2,10 @@ import streamlit as st
 from PyPDF2 import PdfReader
 from streamlit_extras.add_vertical_space import add_vertical_space
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
+from langchain.vectorstores import chroma
+from sentence_transformers import SentenceTransformer
+import torch
+import faiss
 
 with st.sidebar:
     st.title('My PDF chat')
@@ -21,6 +23,8 @@ def main():
     if pdf is not None:
         pdf_reader = PdfReader(pdf)
 
+        st.write(pdf_reader.metadata)
+
         text = ""
         for page in pdf_reader.pages:
             text += page.extract_text()
@@ -37,9 +41,17 @@ def main():
         st.write(chunks)
 
         #embeddings #tutaj nieco zbocze z kursu gdyż OpenAI jest drogie!!!
-        embeddings = OpenAIEmbeddings()
+        model = SentenceTransformer('all-MiniLM-L6-v2')
 
-        VectorStore = FAISS.from_texts(chunks, embeddings=embeddings)
+        if torch.cuda.is_available():
+            model = model.to(torch.device('cuda'))
+        print(model.device)
+
+        embeddings = model.encode(chunks, show_progress_bar=True)
+        st.write(embeddings)
+
+        embeddings_zip = list(zip(chunks, embeddings))
+
 
 if __name__ == '__main__':
     main()
